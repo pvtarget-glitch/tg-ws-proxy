@@ -562,6 +562,8 @@ jobs:
           set -euo pipefail
           VERSION="${{ github.event.inputs.version }}"
           VERSION="${VERSION#v}"
+          # RPM не допускает '-' в версии: fpm сам меняет его на '_'
+          VERSION="${VERSION//-/_}"
           
           sudo gem install fpm -v 1.17.0
           
