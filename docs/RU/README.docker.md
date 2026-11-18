@@ -43,6 +43,7 @@ tg://proxy?server=172.17.0.2&port=1443&secret=dd68f127db1d...
 | `TG_WS_PROXY_DC_IPS`    | `Пары «номер DC:IP» через пробел`                             | `2:149.154.167.220 4:149.154.167.220` |
 | `TG_WS_PROXY_CF_WORKER` | `Домен Cloudflare Worker`                                     | `None`                                |
 | `TG_WS_PROXY_NO_SECURE` | `Использовать 80 порт для подключения к CF-proxy и CF-Worker` | `False`                               |
+| `TG_WS_PROXY_NO_PLAIN_FALLBACK` | `Запретить автоматический переход на 80 порт, когда TLS до CF не отвечает` | `False`                    |
 
 Пример с ручным указанием секрета:
 

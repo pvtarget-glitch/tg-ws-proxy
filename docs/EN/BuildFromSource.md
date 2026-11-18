@@ -53,6 +53,7 @@ tg-ws-proxy [--port PORT] [--host HOST] [--dc-ip DC:IP ...] [-v]
 | `--cfproxy-domain` | | Specify your own domain for Cloudflare proxying [Learn more](./CfProxy.md). Can be specified multiple times. |
 | `--cfproxy-worker-domain` | | Cloudflare Worker domain [Learn more](./CfWorker.md). Can be specified multiple times. |
 | `--no-secure` | `false` | Use 80 port for CF-proxy and CF-worker connections |
+| `--no-plain-fallback` | `false` | Never switch CF-proxy and CF-worker to port 80 automatically when TLS is not answering |
 | `--fake-tls-domain` | | Enable Fake TLS masquerading (ee-secret) with specified SNI domain |
 | `--proxy-protocol` | disabled | Accept HAProxy PROXY protocol v1 (for use behind nginx/haproxy with `proxy_protocol on`) |
 | `--force-test-dc` | `false` | Route all traffic to Telegram test DCs [Learn more](./TestDc.md) |

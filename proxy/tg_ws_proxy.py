@@ -33,6 +33,7 @@ from .fake_tls import (
 from .balancer import balancer
 from .pool import ws_pool, cf_worker_pool
 from .cf_h2 import CfH2Pool
+from . import cf_routes
 from .network_debug import log_ws_flow
 from .event_loop import install_proactor_socket_guard, install_self_pipe_guard
 from ._aes import Cipher, algorithms, modes
@@ -393,6 +394,7 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     reset_tcp_backoff()
     ws_pool.reset()
     cf_worker_pool.reset()
+    cf_routes.health.reset()
     _client_tasks.clear()
     cf_h2_pool = CfH2Pool() if proxy_config.h2_enabled else None
 
@@ -467,6 +469,9 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
         log.info('  CF H2 media:   enabled')
     if proxy_config.disable_secure:
         log.info("  No secure:     enabled (port 80 for CF proxy/worker)")
+    elif proxy_config.cf_plain_fallback and (
+            proxy_config.fallback_cfproxy or proxy_config.cfproxy_worker_domains):
+        log.info("  Plain fallback: auto (port 80 if TLS to CF is not answering)")
     log.info("=" * 60)
     log.info("  Connect:")
     if ftls:
@@ -639,6 +644,9 @@ def main():
                     help='Disable Cloudflare proxy fallback')
     ap.add_argument('--no-secure', action='store_true',
                         help='Use 80 port for CF-proxy and CF-worker connections')
+    ap.add_argument('--no-plain-fallback', action='store_true',
+                    help='Never switch CF-proxy and CF-worker to port 80 '
+                         'automatically when TLS is not answering')
     ap.add_argument('--fake-tls-domain', type=str, default='',
                     metavar='DOMAIN',
                     help='Enable Fake TLS (ee-secret) masking with the given '
@@ -692,6 +700,7 @@ def main():
     proxy_config.cfproxy_worker_domains = coerce_domain_list(args.cfproxy_worker_domain)
     proxy_config.cfproxy_h2_media = not args.no_h2
     proxy_config.disable_secure = args.no_secure
+    proxy_config.cf_plain_fallback = not args.no_plain_fallback
     proxy_config.fake_tls_domain = args.fake_tls_domain.strip()
     proxy_config.proxy_protocol = args.proxy_protocol
     proxy_config.force_test_dc = args.force_test_dc

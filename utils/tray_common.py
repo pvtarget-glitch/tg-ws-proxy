@@ -374,6 +374,7 @@ def apply_proxy_config(cfg: dict) -> bool:
     )
     pc.force_test_dc = cfg.get("force_test_dc", DEFAULT_CONFIG["force_test_dc"])
     pc.disable_secure = cfg.get("no_secure", DEFAULT_CONFIG["no_secure"])
+    pc.cf_plain_fallback = cfg.get("plain_fallback", DEFAULT_CONFIG["plain_fallback"])
     return True
 
 

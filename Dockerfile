@@ -27,7 +27,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     TG_WS_PROXY_SECRET=""  \
     TG_WS_PROXY_DC_IPS="2:149.154.167.220 4:149.154.167.220" \
     TG_WS_PROXY_CF_WORKER="" \
-    TG_WS_PROXY_NO_SECURE=False
+    TG_WS_PROXY_NO_SECURE=False \
+    TG_WS_PROXY_NO_PLAIN_FALLBACK=False
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tini ca-certificates \
@@ -55,7 +56,11 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/sh", "-lc", "set -eu; args=\"\
         then args=\"$args --secret ${TG_WS_PROXY_SECRET}\"; fi; \
     if [ -n \"${TG_WS_PROXY_CF_WORKER}\" ]; \
         then args=\"$args --cfproxy-worker-domain ${TG_WS_PROXY_CF_WORKER}\"; fi; \
-    if [ \"${TG_WS_PROXY_NO_SECURE}\" = \"True\" ]; \ 
-        then args=\"$args --no-secure \"; fi; \
+    case \"${TG_WS_PROXY_NO_SECURE}\" in \
+        [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) args=\"$args --no-secure\";; \
+    esac; \
+    case \"${TG_WS_PROXY_NO_PLAIN_FALLBACK}\" in \
+        [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) args=\"$args --no-plain-fallback\";; \
+    esac; \
     exec /opt/venv/bin/python -u proxy/tg_ws_proxy.py $args \"$@\"", "--"]
 CMD []

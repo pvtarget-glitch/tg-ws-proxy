@@ -43,6 +43,7 @@ All settings are configured using environment variables when running the contain
 | `TG_WS_PROXY_DC_IPS`    | DC number:IP pairs separated by space              | `2:149.154.167.220 4:149.154.167.220` |
 | `TG_WS_PROXY_CF_WORKER` | Cloudflare Worker domain                           | `None`                                |
 | `TG_WS_PROXY_NO_SECURE` | Use 80 port for CF-proxy and CF-worker connections | `False`                               |
+| `TG_WS_PROXY_NO_PLAIN_FALLBACK` | Never switch to port 80 automatically when TLS to CF is not answering | `False`                    |
 
 Example with manually specified secret:
 

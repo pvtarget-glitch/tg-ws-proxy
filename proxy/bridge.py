@@ -14,6 +14,7 @@ from .raw_websocket import RawWebSocket
 from .pool import cf_worker_pool
 from .network_debug import WsActivity
 from .cf_h2 import bridge_h2
+from . import cf_routes
 
 
 log = logging.getLogger('tg-mtproto-proxy')
@@ -161,7 +162,10 @@ async def do_fallback(reader, writer, relay_init, label,
             if ok:
                 return True
         elif method == 'cf':
-            if is_media and h2_pool is not None and proto_tag is not None:
+            # H2 ходит только по TLS: если TLS до Cloudflare не отвечает и мы
+            # уже работаем через 80 порт, не тратим на него таймаут
+            if (is_media and h2_pool is not None and proto_tag is not None
+                    and cf_routes.tls_usable(cf_routes.GROUP_CF)):
                 channel = await h2_pool.open(dc, label)
                 if channel is not None:
                     stats.connections_h2 += 1
@@ -206,24 +210,16 @@ async def _cfproxy_worker_fallback(reader, writer, relay_init, label,
         })
         path = f'/apiws?{query}'
 
-        ws = None
-        for worker_domain in cf_worker_pool.available_domains(worker_domains):
-            log.info("[%s] DC%d%s -> trying CF worker %s for %s",
-                     label, dc, media_tag, worker_domain, fallback_dst)
-
-            try:
-                ws = await RawWebSocket.connect(worker_domain, worker_domain,
-                                                timeout=10.0, path=path, 
-                                                secure=not proxy_config.disable_secure)
-                break
-            except Exception as exc:
-                cf_worker_pool.report_failure(worker_domain, exc)
-                log.warning("[%s] DC%d%s CF worker %s failed: %s",
-                            label, dc, media_tag, worker_domain, repr(exc))
-                continue
-
-        if ws is None:
+        candidates = cf_worker_pool.available_domains(worker_domains)
+        log.info("[%s] DC%d%s -> trying CF worker (%d domain(s)) for %s",
+                 label, dc, media_tag, len(candidates), fallback_dst)
+        result = await cf_routes.connect(
+            [cf_routes.Target(domain, domain) for domain in candidates],
+            path=path, group=cf_routes.GROUP_WORKER, label=label,
+            what=f'DC{dc}{media_tag} CF worker')
+        if result is None:
             return False
+        ws = result[0]
 
     stats.connections_cfproxy += 1
     await ws.send(relay_init)
@@ -244,23 +240,20 @@ async def _cfproxy_fallback(reader, writer, relay_init, label,
     log.info("[%s] DC%d%s -> trying CF proxy",
             label, dc, media_tag)
     connect_started = time.monotonic()
-    secure = not proxy_config.disable_secure
 
-    for base_domain in balancer.get_domains_for_dc(dc):
-        domain = f'kws{dc}.{base_domain}'
-        try:
-            ws = await RawWebSocket.connect(domain, domain, timeout=10.0, secure=secure)
-            chosen_domain = base_domain
-            break
-        except Exception as exc:
-            log.warning("[%s] DC%d%s CF proxy failed: %r (host=%s port=%d)",
-                        label, dc, media_tag, exc, domain, 443 if secure else 80)
-
-    if ws is None:
+    result = await cf_routes.connect(
+        [cf_routes.Target(base_domain, f'kws{dc}.{base_domain}')
+         for base_domain in balancer.get_domains_for_dc(dc)],
+        path='/apiws', group=cf_routes.GROUP_CF, label=label,
+        what=f'DC{dc}{media_tag} CF proxy')
+    if result is None:
         return False
+    ws, target, secure = result
+    chosen_domain = target.key
 
-    log.debug('[%s] WS CONNECT DC%d%s route=cf setup_ms=%.0f',
-              label, dc, media_tag, (time.monotonic() - connect_started) * 1000)
+    log.debug('[%s] WS CONNECT DC%d%s route=cf mode=%s setup_ms=%.0f',
+              label, dc, media_tag, 'tls' if secure else 'plain',
+              (time.monotonic() - connect_started) * 1000)
     if chosen_domain and balancer.update_domain_for_dc(dc, chosen_domain):
         log.info("[%s] Switched active CF domain", label)
 
