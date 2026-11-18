@@ -11,12 +11,12 @@ on:
       version:
         description: "Release version tag (e.g. v1.0.0)"
         required: false
-        default: "v1.0.0"
+        default: "v1.11.4-cf1"
       sign_windows:
-        description: 'Sign?'
+        description: 'Sign? (needs SIGNPATH_API_TOKEN, off in this fork)'
         type: boolean
         required: false
-        default: true
+        default: false
       build_windows_x64:
         description: 'Build Windows x64?'
         type: boolean
@@ -659,12 +659,13 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: "TG WS Proxy ${{ github.event.inputs.version }}"
           body: |
-            --- 
-            ### [❤️ Поддержать развитие проекта](https://github.com/Flowseal/tg-ws-proxy/blob/main/docs/RU/Funding.md)
+            **Неофициальная сборка.** Основа — [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) плюс исправление маршрутизации через Cloudflare после блокировки встроенных доменов 16.11.2026 ([#1567](https://github.com/Flowseal/tg-ws-proxy/issues/1567)). Автор исходного проекта к сборке отношения не имеет.
 
-            > [!TIP]
-            > Не можете скачать?
-            > Воспользуйтесь зеркалом: https://sourceforge.net/projects/tg-ws-proxy.mirror/files/
+            - CF-домены пробуются параллельно, отказавшие уходят в паузу, на попытку максимум 15 с.
+            - Если TLS (443) до Cloudflare не отвечает, прокси сам переходит на порт 80 и в фоне проверяет возврат TLS.
+            - Отключить автопереход: `"plain_fallback": false` в конфиге, `--no-plain-fallback`, `TG_WS_PROXY_NO_PLAIN_FALLBACK=true`.
+
+            Файлы не подписаны: Windows SmartScreen покажет предупреждение («Подробнее» → «Выполнить в любом случае»).
           files: |
             dist/TgWsProxy_windows.exe
             dist/TgWsProxy_windows_arm64.exe
