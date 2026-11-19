@@ -25,6 +25,10 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
         python: ['3.8', '3.11', '3.12']
+        exclude:
+          # на раннерах Ubuntu 26.04 Python 3.8 нет; 3.8 нужен только сборке для Windows 7
+          - os: ubuntu-latest
+            python: '3.8'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
