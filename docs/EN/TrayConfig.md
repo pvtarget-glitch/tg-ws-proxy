@@ -29,6 +29,7 @@ The tray application stores data in:
   "force_test_dc": false,
   "no_secure": false,
   "plain_fallback": true,
+  "dpi_split": true,
   "appearance": "auto",
   "language": "en"
 }

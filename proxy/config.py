@@ -73,6 +73,7 @@ class ProxyConfig:
     cfproxy_h2_media: bool = True
     disable_secure: bool = False
     cf_plain_fallback: bool = True
+    cf_dpi_split: bool = True
     fake_tls_domain: str = ''
     proxy_protocol: bool = False
     force_test_dc: bool = False

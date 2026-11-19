@@ -29,6 +29,7 @@ _TRAY_DEFAULTS_COMMON: Dict[str, Any] = {
     "force_test_dc": False,
     "no_secure": False,
     "plain_fallback": True,
+    "dpi_split": True,
     "appearance": "auto",
 }
 

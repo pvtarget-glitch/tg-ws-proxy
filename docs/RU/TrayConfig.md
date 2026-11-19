@@ -29,6 +29,7 @@ Tray-приложение хранит данные в:
   "force_test_dc": false,
   "no_secure": false,
   "plain_fallback": true,
+  "dpi_split": true,
   "appearance": "auto",
   "language": "ru"
 }

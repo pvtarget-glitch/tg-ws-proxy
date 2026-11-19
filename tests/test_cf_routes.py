@@ -38,9 +38,11 @@ class Net:
         self.behaviour = behaviour
         self.calls = []
         self.opened = []
+        self.dpi_flags = []
 
     async def connect(self, host, domain, timeout=10.0, path='/apiws', *,
-                      sni=None, secure=True):
+                      sni=None, secure=True, dpi=False):
+        self.dpi_flags.append(dpi)
         self.calls.append((host, secure))
         action = self.behaviour(host, secure)
         if action == 'hang':

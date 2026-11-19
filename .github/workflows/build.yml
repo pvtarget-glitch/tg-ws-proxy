@@ -11,7 +11,7 @@ on:
       version:
         description: "Release version tag (e.g. v1.0.0)"
         required: false
-        default: "v1.11.4-cf1"
+        default: "v1.11.4-cf2"
       sign_windows:
         description: 'Sign? (needs SIGNPATH_API_TOKEN, off in this fork)'
         type: boolean

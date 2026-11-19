@@ -3,9 +3,11 @@ import logging
 import base64
 import struct
 import asyncio
+import time
 import socket as _socket
 
 from typing import List, Optional, Tuple
+from . import dpi as dpi_mod
 from .config import proxy_config
 from .utils import create_ssl_context
 
@@ -72,7 +74,7 @@ def set_sock_opts(transport, buffer_size):
 
 
 class RawWebSocket:
-    __slots__ = ('reader', 'writer', '_closed', '_frag')
+    __slots__ = ('reader', 'writer', '_closed', '_frag', '_last_io', '_ka_task')
 
     OP_CONT = 0x0
     OP_BINARY = 0x2
@@ -88,11 +90,14 @@ class RawWebSocket:
         self.writer = writer
         self._closed = False
         self._frag = bytearray()
+        self._last_io = time.monotonic()
+        self._ka_task = None
 
     @staticmethod
     async def connect(host: str, domain: str, timeout: float = 10.0,
                       path: str = '/apiws', *,
-                      sni: Optional[str] = None, secure = True) -> 'RawWebSocket':
+                      sni: Optional[str] = None, secure = True,
+                      dpi: bool = False) -> 'RawWebSocket':
         ssl_context = _ssl_ctx_fronting if sni else _ssl_ctx
 
         if sni is None:
@@ -102,10 +107,19 @@ class RawWebSocket:
         tls_options = {'ssl': ssl_context, 'server_hostname': sni} if secure else {}
         writer = None
         try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port, **tls_options),
-                timeout=min(timeout, 10),
-            )
+            if dpi and secure:
+                # CF-маршрут: ClientHello уходит двумя TLS-рекордами (proxy/dpi.py)
+                reader, writer = await asyncio.wait_for(
+                    dpi_mod.open_tls_split(
+                        host, port, ssl_context, sni,
+                        sock_opts=lambda tr: set_sock_opts(tr, proxy_config.buffer_size)),
+                    timeout=min(timeout, 10),
+                )
+            else:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port, **tls_options),
+                    timeout=min(timeout, 10),
+                )
             set_sock_opts(writer.transport, proxy_config.buffer_size)
 
             ws_key = base64.b64encode(os.urandom(16)).decode()
@@ -121,8 +135,11 @@ class RawWebSocket:
                 f'\r\n'
             )
 
-            writer.write(req.encode())
-            await writer.drain()
+            if dpi and not secure:
+                await dpi_mod.write_split_http(writer, req.encode())
+            else:
+                writer.write(req.encode())
+                await writer.drain()
 
             response_lines: list[str] = []
             while True:
@@ -175,20 +192,48 @@ class RawWebSocket:
         if self._closed:
             raise ConnectionError("WebSocket closed")
         frame = self._build_frame(self.OP_BINARY, data, mask=True)
+        self._last_io = time.monotonic()
         self.writer.write(frame)
         await self.writer.drain()
 
     async def send_batch(self, parts: List[bytes]):
         if self._closed:
             raise ConnectionError("WebSocket closed")
+        self._last_io = time.monotonic()
         for part in parts:
             self.writer.write(
                 self._build_frame(self.OP_BINARY, part, mask=True))
         await self.writer.drain()
 
+    def start_keepalive(self, check: float = 5.0, idle: float = 20.0) -> None:
+        """
+        WebSocket ping при простое: соединения через CF без трафика сервер
+        закрывает на 60-й секунде (upstream ws_close), и Telegram заново
+        открывает их через перебор доменов. Ping пишется в буфер без drain():
+        на Python 3.8 параллельный drain() из двух задач падает.
+        """
+        if self._ka_task is not None:
+            return
+
+        async def _loop():
+            last_ping = time.monotonic()
+            try:
+                while not self._closed and not self.writer.is_closing():
+                    await asyncio.sleep(check)
+                    now = time.monotonic()
+                    if now - self._last_io >= idle and now - last_ping >= idle:
+                        last_ping = now
+                        self.writer.write(
+                            self._build_frame(self.OP_PING, b'', mask=True))
+            except (asyncio.CancelledError, Exception):
+                return
+
+        self._ka_task = asyncio.ensure_future(_loop())
+
     async def recv(self) -> Optional[bytes]:
         while not self._closed:
             opcode, payload, fin = await self._read_frame()
+            self._last_io = time.monotonic()
 
             if opcode == self.OP_CLOSE:
                 self._closed = True
@@ -232,6 +277,9 @@ class RawWebSocket:
         return None
 
     async def close(self):
+        if self._ka_task is not None:
+            self._ka_task.cancel()
+            self._ka_task = None
         try:
             if not self._closed:
                 self._closed = True

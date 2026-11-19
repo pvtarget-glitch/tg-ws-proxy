@@ -222,6 +222,7 @@ async def _cfproxy_worker_fallback(reader, writer, relay_init, label,
         ws = result[0]
 
     stats.connections_cfproxy += 1
+    ws.start_keepalive()
     await ws.send(relay_init)
     await bridge_ws_reencrypt(reader, writer, ws, label, ctx,
                               dc=dc, is_media=is_media,
@@ -258,6 +259,7 @@ async def _cfproxy_fallback(reader, writer, relay_init, label,
         log.info("[%s] Switched active CF domain", label)
 
     stats.connections_cfproxy += 1
+    ws.start_keepalive()
     await ws.send(relay_init)
     await bridge_ws_reencrypt(reader, writer, ws, label, ctx,
                                dc=dc, is_media=is_media,

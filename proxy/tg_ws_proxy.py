@@ -472,6 +472,9 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     elif proxy_config.cf_plain_fallback and (
             proxy_config.fallback_cfproxy or proxy_config.cfproxy_worker_domains):
         log.info("  Plain fallback: auto (port 80 if TLS to CF is not answering)")
+    if proxy_config.cf_dpi_split and (
+            proxy_config.fallback_cfproxy or proxy_config.cfproxy_worker_domains):
+        log.info("  CF DPI split:  enabled")
     log.info("=" * 60)
     log.info("  Connect:")
     if ftls:
@@ -644,6 +647,9 @@ def main():
                     help='Disable Cloudflare proxy fallback')
     ap.add_argument('--no-secure', action='store_true',
                         help='Use 80 port for CF-proxy and CF-worker connections')
+    ap.add_argument('--no-dpi-split', action='store_true',
+                    help='Do not split TLS ClientHello / HTTP Host for '
+                         'CF-proxy and CF-worker connections')
     ap.add_argument('--no-plain-fallback', action='store_true',
                     help='Never switch CF-proxy and CF-worker to port 80 '
                          'automatically when TLS is not answering')
@@ -701,6 +707,7 @@ def main():
     proxy_config.cfproxy_h2_media = not args.no_h2
     proxy_config.disable_secure = args.no_secure
     proxy_config.cf_plain_fallback = not args.no_plain_fallback
+    proxy_config.cf_dpi_split = not args.no_dpi_split
     proxy_config.fake_tls_domain = args.fake_tls_domain.strip()
     proxy_config.proxy_protocol = args.proxy_protocol
     proxy_config.force_test_dc = args.force_test_dc

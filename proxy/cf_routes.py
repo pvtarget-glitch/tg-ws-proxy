@@ -161,7 +161,7 @@ def tls_usable(group: str = GROUP_CF) -> bool:
 async def _dial(host: str, path: str, secure: bool) -> RawWebSocket:
     return await asyncio.wait_for(
         RawWebSocket.connect(host, host, timeout=ATTEMPT_TIMEOUT, path=path,
-                             secure=secure),
+                             secure=secure, dpi=proxy_config.cf_dpi_split),
         timeout=ATTEMPT_TIMEOUT)
 
 

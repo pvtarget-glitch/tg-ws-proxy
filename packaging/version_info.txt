@@ -26,7 +26,7 @@ VSVersionInfo(
             StringStruct(u'LegalCopyright', u'Copyright (c) Flowseal. MIT License.'),
             StringStruct(u'OriginalFilename', u'TgWsProxy.exe'),
             StringStruct(u'ProductName', u'TG WS Proxy'),
-            StringStruct(u'ProductVersion', u'1.11.4+cf1 (unofficial build)'),
+            StringStruct(u'ProductVersion', u'1.11.4+cf2 (unofficial build)'),
           ]
         )
       ]
