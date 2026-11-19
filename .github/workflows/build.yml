@@ -649,6 +649,21 @@ jobs:
           && github.event.inputs.build_macos == 'true'
           && github.event.inputs.build_linux == 'true' }}
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/release-notes
+          path: src
+
+      - name: Release notes for this version
+        run: |
+          f="src/.github/release-notes/${{ github.event.inputs.version }}.md"
+          if [ -f "$f" ]; then
+            cp "$f" release-notes.md
+          else
+            echo "::warning::Нет файла $f — релиз выйдет без описания изменений"
+            printf 'Описание изменений для этой версии не добавлено.\n' > release-notes.md
+          fi
       - uses: actions/download-artifact@v8
         with:
           pattern: TgWsProxy*
@@ -660,14 +675,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.version }}
           name: "TG WS Proxy ${{ github.event.inputs.version }}"
-          body: |
-            **Неофициальная сборка.** Основа — [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) плюс исправление маршрутизации через Cloudflare после блокировки встроенных доменов 16.11.2026 ([#1567](https://github.com/Flowseal/tg-ws-proxy/issues/1567)). Автор исходного проекта к сборке отношения не имеет.
-
-            - CF-домены пробуются параллельно, отказавшие уходят в паузу, на попытку максимум 15 с.
-            - Если TLS (443) до Cloudflare не отвечает, прокси сам переходит на порт 80 и в фоне проверяет возврат TLS.
-            - Отключить автопереход: `"plain_fallback": false` в конфиге, `--no-plain-fallback`, `TG_WS_PROXY_NO_PLAIN_FALLBACK=true`.
-
-            Файлы не подписаны: Windows SmartScreen покажет предупреждение («Подробнее» → «Выполнить в любом случае»).
+          body_path: release-notes.md
           files: |
             dist/TgWsProxy_windows.exe
             dist/TgWsProxy_windows_arm64.exe
